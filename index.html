@@ -153,9 +153,12 @@ footer { color: var(--niebla); font-size: 14px; border-top: 1px solid var(--mari
             <input type="time" id="hora" value="22:00">
           </label>
         </div>
+        <label for="lugar"><span>¿Dónde fue? <span class="opt">(opcional: ciudad o país)</span></span>
+          <input type="text" id="lugar" maxlength="40" autocomplete="off" placeholder="Arrecife, Madrid, Buenos Aires…">
+        </label>
         <div class="fase" id="faseBox" hidden>
           <img id="faseImg" alt="">
-          <div><b id="faseTxt"></b><span>La fase real de esa noche, desde España</span></div>
+          <div><b id="faseTxt"></b><span>La fase real de esa noche (hora de Canarias)</span></div>
         </div>
         <p class="err" id="errFecha" hidden>Pon la fecha de esa noche.</p>
       </fieldset>
@@ -306,11 +309,24 @@ function titulo(s) {
     return lw.charAt(0).toLocaleUpperCase('es') + lw.slice(1);
   }).join(' ');
 }
+// La fase se calcula siempre con la hora de Canarias (Atlantic/Canary, con su horario de verano histórico),
+// sea cual sea la zona horaria del móvil de quien rellena el pedido.
+function desfase(ms, tz) {
+  const p = {};
+  for (const x of new Intl.DateTimeFormat('en-US', { timeZone: tz, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }).formatToParts(new Date(ms))) p[x.type] = x.value;
+  return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - ms;
+}
+function horaCanaria(y, m, d, hh, mm) {
+  const local = Date.UTC(y, m - 1, d, hh, mm);
+  let ms = local - desfase(local, 'Atlantic/Canary');
+  ms = local - desfase(ms, 'Atlantic/Canary');
+  return new Date(ms);
+}
 function leerFecha() {
   const v = $('fecha').value; if (!v) return null;
   const [y, m, d] = v.split('-').map(Number);
   const [hh, mm] = ($('hora').value || '22:00').split(':').map(Number);
-  const dt = new Date(y, m - 1, d, hh || 0, mm || 0);
+  const dt = horaCanaria(y, m, d, hh || 0, mm || 0);
   return isNaN(dt) ? null : { y, m, d, dt };
 }
 function fechaLarga(f) { return f.d + ' de ' + MESES[f.m - 1] + ' de ' + f.y; }
@@ -412,6 +428,7 @@ $('f').addEventListener('submit', async e => {
     'Ocasión: ' + ocasion,
     'Fecha: ' + fechaLarga(f) + ($('hora').value && $('hora').value !== '22:00' ? ', ' + $('hora').value : ''),
     'Fase: ' + faseTexto(p),
+    'Lugar: ' + ($('lugar').value.trim().replace(/\s+/g, ' ') || '(no indicado)'),
     'Nombres: ' + nom,
     'Texto de abajo: ' + (frase($('frase').value) || '(sin texto)'),
     'Formato: PDF y PNG, ' + ($('tamano').value.trim() || '20x30'),
