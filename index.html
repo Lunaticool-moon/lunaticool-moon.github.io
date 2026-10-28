@@ -76,6 +76,8 @@ input:focus-visible, textarea:focus-visible, .chip:focus-visible, button:focus-v
 }
 .chip[aria-pressed="true"] { border-color: var(--dorado); color: var(--dorado-suave); background: rgba(201,169,98,.08); }
 .hint { font-size: 14px; color: var(--niebla); margin: 0; }
+.ideas button { font: inherit; color: var(--suave, #e3d3a4); background: none; border: 0; padding: 0; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.ideas button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; }
 .count { justify-self: end; font-size: 13px; font-variant-numeric: tabular-nums; }
 .err { color: var(--error); font-size: 14px; margin: 0; }
 
@@ -164,10 +166,11 @@ footer { color: var(--niebla); font-size: 14px; border-top: 1px solid var(--mari
           <input type="text" id="nombres" maxlength="28" autocomplete="off" placeholder="Lucía & Pablo">
         </label>
         <p class="err" id="errNombres" hidden>Escribe el nombre que va en la lámina.</p>
-        <label for="frase"><span>Texto de abajo <span class="opt">(opcional: quién lo regala o una palabra)</span></span>
-          <input type="text" id="frase" maxlength="24" autocomplete="off" placeholder="Mamá">
-          <span class="count" id="cuenta">0 / 24</span>
+        <label for="frase"><span>Texto de abajo <span class="opt">(opcional, pero queda mucho más bonito)</span></span>
+          <input type="text" id="frase" maxlength="20" autocomplete="off" placeholder="El día que llegaste" aria-describedby="ejemplos">
+          <span class="count" id="cuenta">0 / 20</span>
         </label>
+        <p class="hint ideas" id="ejemplos"></p>
         <p class="hint">El nombre va arriba con la fecha; abajo, la fase de la luna y tu texto. Mayúscula solo al principio de cada nombre.</p>
         <label for="tamano"><span>Tamaño <span class="opt">(20x30 si lo dejas vacío)</span></span>
           <input type="text" id="tamano" maxlength="30" autocomplete="off" placeholder="¿Otro tamaño? Por ejemplo A4 o 30x40">
@@ -259,6 +262,24 @@ const $ = id => document.getElementById(id);
 const MESES = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
 const KEYS = Object.keys(MOONS).map(k => ({ k, pct: k === '100' ? 100 : parseInt(k, 10), waxing: k === '100' ? null : k.endsWith('c') }));
 let ocasion = 'Un nacimiento';
+const IDEAS = {
+  'Un nacimiento': ['El día que llegaste', 'Bienvenido al mundo', 'Mamá'],
+  'Pareja': ['Donde empezó todo', 'Tú y yo', 'Nuestro comienzo'],
+  'Boda': ['Nuestro sí', 'Para siempre', 'Sí, quiero'],
+  'Aniversario': ['Seguimos', 'Contigo', 'Toda una vida'],
+  'En memoria': ['Siempre contigo', 'Tu luz sigue aquí', 'Te queremos'],
+  'Otra fecha': ['Nace un sueño', 'Un nuevo comienzo', 'Lo logré']
+};
+function ideas() {
+  const l = IDEAS[ocasion] || IDEAS['Otra fecha'];
+  $('frase').placeholder = l[0];
+  $('ejemplos').innerHTML = 'Ideas: ' + l.map(t => '<button type="button" data-t="' + t + '">' + t + '</button>').join(' · ') + '. También quién la regala.';
+}
+function frase(s) {
+  s = s.trim().replace(/\s+/g, ' ');
+  if (s.length > 3 && s === s.toLocaleUpperCase('es')) s = s.toLocaleLowerCase('es');
+  return s.charAt(0).toLocaleUpperCase('es') + s.slice(1);
+}
 
 function closest(p) {
   if (p.pct >= 98.5) return '100';
@@ -341,8 +362,8 @@ function dibujar() {
 function pintar() {
   const f = leerFecha();
   const nom = titulo($('nombres').value);
-  const abajo = titulo($('frase').value);
-  $('cuenta').textContent = $('frase').value.length + ' / 24';
+  const abajo = frase($('frase').value);
+  $('cuenta').textContent = $('frase').value.length + ' / 20';
   const editado = !!(f || nom || abajo);
   if (f) {
     const p = moonPhase(f.dt), k = closest(p);
@@ -368,8 +389,14 @@ $('ocasion').addEventListener('click', e => {
   const b = e.target.closest('.chip'); if (!b) return;
   for (const c of $('ocasion').children) c.setAttribute('aria-pressed', String(c === b));
   ocasion = b.dataset.v;
+  ideas();
+});
+$('ejemplos').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  $('frase').value = b.dataset.t; pintar(); $('frase').focus();
 });
 for (const id of ['fecha', 'hora', 'nombres', 'frase']) $(id).addEventListener('input', pintar);
+ideas();
 
 $('f').addEventListener('submit', async e => {
   e.preventDefault();
@@ -386,7 +413,7 @@ $('f').addEventListener('submit', async e => {
     'Fecha: ' + fechaLarga(f) + ($('hora').value && $('hora').value !== '22:00' ? ', ' + $('hora').value : ''),
     'Fase: ' + faseTexto(p),
     'Nombres: ' + nom,
-    'Texto de abajo: ' + (titulo($('frase').value) || '(sin texto)'),
+    'Texto de abajo: ' + (frase($('frase').value) || '(sin texto)'),
     'Formato: PDF y PNG, ' + ($('tamano').value.trim() || '20x30'),
     'Regalo: versión para historias y para el feed',
     'Precio: ' + PRECIO,
