@@ -289,7 +289,7 @@ function closest(p) {
   let best = null, d = 1e9;
   for (const m of KEYS) {
     if (m.k === '100') continue;
-    if (m.waxing !== p.waxing && p.pct > 2) continue;
+    if (m.waxing !== p.waxing) continue;
     const dd = Math.abs(m.pct - p.pct);
     if (dd < d) { d = dd; best = m.k; }
   }
